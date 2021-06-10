@@ -1,0 +1,33 @@
+# Copyright 2021 evilnick
+# See LICENSE file for licensing details.
+name: katib-ui-sidecar
+display-name: Katib UI
+description:  |
+  Katib supports Hyperparameter Tuning, Early Stopping and Neural Architecture Search
+
+  Katib is the project which is agnostic to machine learning (ML) frameworks. It can tune
+  hyperparameters of applications written in any language of the users’ choice and natively
+  supports many ML frameworks, such as TensorFlow, MXNet, PyTorch, XGBoost, and others.  
+summary:  |
+  A Kubernetes-native project for automated machine learning (AutoML)
+tags: [ai, bigdata, katib, kubeflow, machine-learning, hyperparameter, sidecar]
+containers:
+  katib-ui:
+    resource: katib-oci-image
+resources:
+  katib-oci-image:
+    type: oci-image
+    description: Backing OCI image
+    auto-fetch: true
+    upstream-source: docker.io/kubeflowkatib/katib-ui:v1beta1-a96ff59
+requires:
+  ingress:
+    interface: ingress
+    schema: https://raw.githubusercontent.com/canonical/operator-schemas/service-mesh-schemas/ingress.yaml
+    versions: [v1]
+provides:
+  katib-ui:
+    interface: http
+
+
+

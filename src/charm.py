@@ -31,8 +31,7 @@ class KatibUiSidecarCharm(CharmBase):
         super().__init__(*args)
         self.framework.observe(self.on.katib_ui_pebble_ready, self._on_katib_ui_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.fortune_action, self._on_fortune_action)
-        self._stored.set_default(things=[])
+        self._stored.set_default(store=[])
 
     def _on_katib_ui_pebble_ready(self, event):
         """Define and start a workload using the Pebble API.
@@ -44,19 +43,18 @@ class KatibUiSidecarCharm(CharmBase):
 
         Learn more about Pebble layers at https://github.com/canonical/pebble
         """
-        # Get a reference the container attribute on the PebbleReadyEvent
+        # Get a reference to the container attribute on the PebbleReadyEvent
         container = event.workload
         # Define an initial Pebble layer configuration
         pebble_layer = {
             "summary": "katib-ui layer",
             "description": "pebble config layer for katib-ui",
             "services": {
-                "httpbin": {
+                "katib-ui": {
                     "override": "replace",
                     "summary": "katib-ui",
                     "command": "./katib-ui",
                     "startup": "enabled",
-                    "environment": {"thing": self.model.config["thing"]},
                 }
             },
         }
@@ -69,35 +67,10 @@ class KatibUiSidecarCharm(CharmBase):
         self.unit.status = ActiveStatus()
 
     def _on_config_changed(self, _):
-        """Just an example to show how to deal with changed configuration.
-
-        TEMPLATE-TODO: change this example to suit your needs.
-        If you don't need to handle config, you can remove this method,
-        the hook created in __init__.py for it, the corresponding test,
-        and the config.py file.
-
-        Learn more about config at https://juju.is/docs/sdk/config
-        """
-        current = self.config["thing"]
-        if current not in self._stored.things:
-            logger.debug("found a new thing: %r", current)
-            self._stored.things.append(current)
-
-    def _on_fortune_action(self, event):
-        """Just an example to show how to receive actions.
-
-        TEMPLATE-TODO: change this example to suit your needs.
-        If you don't need to handle actions, you can remove this method,
-        the hook created in __init__.py for it, the corresponding test,
-        and the actions.py file.
-
-        Learn more about actions at https://juju.is/docs/sdk/actions
-        """
-        fail = event.params["fail"]
-        if fail:
-            event.fail(fail)
-        else:
-            event.set_results({"fortune": "A bug in the code is worth two in the documentation."})
+        # Update port for katib from config 
+        logger.debug("port reconfigured to : %r", self.config["port"])
+        
+        # katib needs to be re-run with a new port
 
 
 if __name__ == "__main__":

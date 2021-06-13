@@ -18,6 +18,7 @@ from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
+from charms.nginx_ingress_integrator.v0.ingress import IngressRequires
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,11 @@ class KatibUiSidecarCharm(CharmBase):
         super().__init__(*args)
         self.framework.observe(self.on.katib_ui_pebble_ready, self._on_katib_ui_pebble_ready)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
+        # self.framework.observe(self.on.ingress_relation_changed, self.ingress_relation)
+        self.ingress = IngressRequires(
+                        self, {"service-hostname": "katib-ui",
+                        "service-name": self.model.app.name,
+                        "service-port": self.config["port"]})
         self._stored.set_default(store={})
 
     def _on_katib_ui_pebble_ready(self, event):

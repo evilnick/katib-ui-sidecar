@@ -36,7 +36,7 @@ class KatibUiSidecarCharm(CharmBase):
         # self.framework.observe(self.on.ingress_relation_changed, self.ingress_relation)
         self.ingress = IngressRequires(
                         self, {"service-hostname": "katib-ui",
-                        "service-name": self.model.app.name,
+                        "service-name": "katib-ui",
                         "service-port": self.config["port"]})
         self._stored.set_default(store={})
 

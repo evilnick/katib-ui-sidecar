@@ -17,7 +17,8 @@ import logging
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
-from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
+from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus, WaitingStatus
+from ops.pebble import Layer, ConnectionError
 from charms.nginx_ingress_integrator.v0.ingress import IngressRequires
 
 logger = logging.getLogger(__name__)
@@ -41,16 +42,9 @@ class KatibUiSidecarCharm(CharmBase):
 
     def _on_katib_ui_pebble_ready(self, event):
         """Define and start a workload using the Pebble API.
-
-        TEMPLATE-TODO: change this example to suit your needs.
-        You'll need to specify the right entrypoint and environment
-        configuration for your specific workload. Tip: you can see the
-        standard entrypoint of an existing container using docker inspect
-
-        Learn more about Pebble layers at https://github.com/canonical/pebble
         """
         # Get a reference to the container attribute on the PebbleReadyEvent
-        container = event.workload
+        container = self.unit.get_container("katib-ui")
         # Define an initial Pebble layer configuration
         pebble_layer = {
             "summary": "katib-ui layer",
@@ -59,9 +53,9 @@ class KatibUiSidecarCharm(CharmBase):
                 "katib-ui": {
                     "override": "replace",
                     "summary": "katib-ui",
-                    "command": "./katib-ui",
+                    "command": f"./katib-ui --port={self.model.config['port']}",
                     "startup": "enabled",
-                    "environment": {"KATIB_PORT": self.model.config["port"]},
+                    "environment": {"KUBERNETES_POD_NAMESPACE": self.model.name},
                 }
             }
         }
@@ -69,11 +63,10 @@ class KatibUiSidecarCharm(CharmBase):
         container.add_layer("katib-ui", pebble_layer, combine=True)
         # Autostart any services that were defined with startup: enabled
         container.autostart()
-        # Learn more about statuses in the SDK docs:
-        # https://juju.is/docs/sdk/constructs#heading--statuses
+        #TODO: katib-ui also needs a service account, check how to add this
         self.unit.status = ActiveStatus()
 
-    def _on_config_changed(self, _):
+    def _on_config_changed(self, event):
         # Update port for katib from config 
         logger.debug("port reconfigured to : %r", self.config["port"])
         # N.B. currently, there is only a single config value. As this
@@ -82,9 +75,21 @@ class KatibUiSidecarCharm(CharmBase):
         # will not trigger this event), there is no need to check if 
         # the port has changed - it definitely has.
         self.unit.status = MaintenanceStatus("Configuring")
-        # katib needs to be re-run with a new port
-        logger.info("Finished config_changed")
-        self.unit.status = ActiveStatus()
+        # katib-ui needs to be re-run with the new port 
+        try:
+            container = self.unit.get_container("katib-ui")
+            if container.get_service("katib-ui").is_running():
+                container.stop("katib-ui")
+                logger.info("container stopped for port change")
+            
+            container.start('katib-ui')
+            # as the actual port config is supplied in the service command, restarting should be sufficient to change it        
+            logger.info("Finished config_changed")
+            self.unit.status = ActiveStatus()
+        except ConnectionError:
+            # there is no container
+            self.unit.status = WaitingStatus("Waiting for Pebble")
+
 
 if __name__ == "__main__":
     main(KatibUiSidecarCharm)

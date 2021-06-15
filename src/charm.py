@@ -4,13 +4,7 @@
 #
 # Learn more at: https://juju.is/docs/sdk
 
-"""Charm the service.
-
-Refer to the following post for a quick-start guide that will help you
-develop a new k8s charm using the Operator Framework:
-
-    https://discourse.charmhub.io/t/4208
-"""
+"""Sidecar charm for the katib-ui service."""
 
 import logging
 
@@ -19,7 +13,8 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus, WaitingStatus
 from ops.pebble import Layer, ConnectionError
-from charms.nginx_ingress_integrator.v0.ingress import IngressRequires
+from oci_image import OCIImageResource, OCIImageResourceError
+from serialized_data_interface import NoCompatibleVersions, NoVersionsListed, get_interfaces
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +26,26 @@ class KatibUiCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        
+        try:
+            self.interfaces = get_interfaces(self)
+        except NoVersionsListed as err:
+            self.model.unit.status = WaitingStatus(str(err))
+            return
+        except NoCompatibleVersions as err:
+            self.model.unit.status = BlockedStatus(str(err))
+            return
+        else:
+            self.model.unit.status = ActiveStatus()
+        
         self.framework.observe(self.on.katib_ui_pebble_ready, self._pebble_ready)
         self.framework.observe(self.on.config_changed, self._apply_layer)
-        # self.framework.observe(self.on.ingress_relation_changed, self.ingress_relation)
-        self.ingress = IngressRequires(
-                        self, {"service-hostname": "katib-ui",
-                        "service-name": "katib-ui",
-                        "service-port": self.config["port"]})
+        self.framework.observe(self.on["ingress"].relation_changed, self._configure_ingress)
         self._stored.set_default(store={})
 
+
     def _pebble_ready(self, _):
+        
         self._apply_layer( _)
         # katib-ui also needs a service account
         # TODO: add code for that here
@@ -57,6 +62,17 @@ class KatibUiCharm(CharmBase):
             self.unit.status = ActiveStatus()
         except ConnectionError:
             self.unit.status = WaitingStatus("Waiting for Pebble")
+
+    def _configure_ingress(self, event):
+        """sends data for ingress relation"""
+        if self.interfaces["ingress"]:
+            self.interfaces["ingress"].send_data(
+                {
+                    "prefix": "/katib/",
+                    "service": self.model.app.name,
+                    "port": self.model.config["port"],
+                }
+            )
 
     @property
     def layer(self):

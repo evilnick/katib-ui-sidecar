@@ -1,6 +1,6 @@
 # Copyright 2021 evilnick
 # See LICENSE file for licensing details.
-name: katib-ui
+name: katib-ui-sidecar
 display-name: Katib UI
 description:  |
   Katib supports Hyperparameter Tuning, Early Stopping and Neural Architecture Search
@@ -23,7 +23,7 @@ resources:
 requires:
   ingress:
     interface: ingress
-    schema: https://raw.githubusercontent.com/canonical/operator-schemas/service-mesh-schemas/ingress.yaml
+    schema: https://raw.githubusercontent.com/canonical/operator-schemas/master/ingress.yaml
     versions: [v1]
 provides:
   katib-ui:

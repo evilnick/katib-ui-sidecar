@@ -31,8 +31,8 @@ class KatibUiCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.framework.observe(self.on.katib_ui_pebble_ready, self._on_katib_ui_pebble_ready)
-        self.framework.observe(self.on.config_changed, self._on_config_changed)
+        self.framework.observe(self.on.katib_ui_pebble_ready, self._pebble_ready)
+        self.framework.observe(self.on.config_changed, self._apply_layer)
         # self.framework.observe(self.on.ingress_relation_changed, self.ingress_relation)
         self.ingress = IngressRequires(
                         self, {"service-hostname": "katib-ui",
@@ -40,13 +40,29 @@ class KatibUiCharm(CharmBase):
                         "service-port": self.config["port"]})
         self._stored.set_default(store={})
 
-    def _on_katib_ui_pebble_ready(self, event):
-        """Define and start a workload using the Pebble API.
-        """
-        # Get a reference to the container attribute on the PebbleReadyEvent
-        container = self.unit.get_container("katib-ui")
-        # Define an initial Pebble layer configuration
-        pebble_layer = {
+    def _pebble_ready(self, _):
+        self._apply_layer( _)
+        # katib-ui also needs a service account
+        # TODO: add code for that here
+
+    def _apply_layer(self, _):
+        """Manage the container using the Pebble API."""
+        try:
+            self.unit.status = MaintenanceStatus("applying config")
+            container = self.unit.get_container("katib-ui")
+            container.add_layer("katib-ui", self.layer, combine=True)
+            if container.get_service("katib-ui").is_running():
+                container.stop("katib-ui")
+            container.start("katib-ui")
+            self.unit.status = ActiveStatus()
+        except ConnectionError:
+            self.unit.status = WaitingStatus("Waiting for Pebble")
+
+    @property
+    def layer(self):
+        """Pebble layer"""
+        return Layer(
+            {
             "summary": "katib-ui layer",
             "description": "pebble config layer for katib-ui",
             "services": {
@@ -59,37 +75,7 @@ class KatibUiCharm(CharmBase):
                 }
             }
         }
-        # Add intial Pebble config layer using the Pebble API
-        container.add_layer("katib-ui", pebble_layer, combine=True)
-        # Autostart any services that were defined with startup: enabled
-        container.autostart()
-        #TODO: katib-ui also needs a service account, check how to add this
-        self.unit.status = ActiveStatus()
-
-    def _on_config_changed(self, event):
-        # Update port for katib from config 
-        logger.debug("port reconfigured to : %r", self.config["port"])
-        # N.B. currently, there is only a single config value. As this
-        # event is not triggered unless the value *changes* (i.e. 
-        # running juju config and setting the port to the same value
-        # will not trigger this event), there is no need to check if 
-        # the port has changed - it definitely has.
-        self.unit.status = MaintenanceStatus("Configuring")
-        # katib-ui needs to be re-run with the new port 
-        try:
-            container = self.unit.get_container("katib-ui")
-            if container.get_service("katib-ui").is_running():
-                container.stop("katib-ui")
-                logger.info("container stopped for port change")
-            
-            container.start('katib-ui')
-            # as the actual port config is supplied in the service command, restarting should be sufficient to change it        
-            logger.info("Finished config_changed")
-            self.unit.status = ActiveStatus()
-        except ConnectionError:
-            # there is no container
-            self.unit.status = WaitingStatus("Waiting for Pebble")
-
+    )        
 
 if __name__ == "__main__":
     main(KatibUiCharm)

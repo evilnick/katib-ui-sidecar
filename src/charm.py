@@ -24,7 +24,7 @@ from charms.nginx_ingress_integrator.v0.ingress import IngressRequires
 logger = logging.getLogger(__name__)
 
 
-class KatibUiSidecarCharm(CharmBase):
+class KatibUiCharm(CharmBase):
     """Charm the service."""
 
     _stored = StoredState()
@@ -92,4 +92,4 @@ class KatibUiSidecarCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(KatibUiSidecarCharm)
+    main(KatibUiCharm)

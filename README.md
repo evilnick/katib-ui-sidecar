@@ -2,12 +2,15 @@
 
 ## Description
 
-TODO: Describe your charm in a few paragraphs of Markdown
+
 
 ## Usage
 
-TODO: Provide high-level usage, such as required config or relations
+Clone this repository and deploy with:
 
+```
+juju deploy ./katib-ui.charm  --resource katib-oci-image=docker.io/kubeflowkatib/katib-ui:v1beta1-a96ff59
+```
 
 ## Developing
 

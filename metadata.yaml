@@ -1,6 +1,6 @@
 # Copyright 2021 evilnick
 # See LICENSE file for licensing details.
-name: katib-ui-sidecar
+name: katib-ui
 display-name: Katib UI
 description:  |
   Katib supports Hyperparameter Tuning, Early Stopping and Neural Architecture Search
